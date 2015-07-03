@@ -79,7 +79,6 @@ struct winner_t get_winner_wid(ngram_model_t *model, char word_grapheme[], int32
         substring(word_grapheme, sub, offset_word+1, (strlen(word_grapheme) - offset_word));
         //printf("-%s-%s-%s-%s-\n", vocab, str_pch,pch,sub);
         if ( startsWith(str_pch, sub)){
-
             int nused;
             const int32 prob = ngram_ng_prob(model, i, history, total_history, &nused);
 
