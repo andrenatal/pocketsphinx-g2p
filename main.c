@@ -19,7 +19,7 @@ int main() {
     int32 wid_sentence = ngram_wid(model,"<s>");
     history[0] = wid_sentence;
     int totalh = 0;
-    char word_grapheme[] = "natal";
+    char word_grapheme[] = "with";
     size_t increment = 1;
     int offset_word = 0;
     for (int j = 0 ; j <= (int) strlen(word_grapheme)-1 ; j += increment) {
@@ -37,6 +37,7 @@ int main() {
         offset_word += winner_s.length_match;
     }
 
+    printf ("(%s) ",word_grapheme);
     for (int w = 0; w <= totalh; w++){
         const char* word;
         word = ngram_word(model, history[w]);
@@ -70,26 +71,26 @@ struct winner_t get_winner_wid(ngram_model_t *model, char word_grapheme[], int32
 
         char *pch = strtok(new_vocab, "}");
 
-        char* str = malloc(strlen(pch)+1);
-        strcpy(str, pch);
-        removeChar(str, '|');
-        printf("%s - %s - %s \n", vocab, str,pch);
+        char* str_pch = malloc(strlen(pch)+1);
+        strcpy(str_pch, pch);
+        removeChar(str_pch, '|');
 
         char sub[1000];
         substring(word_grapheme, sub, offset_word+1, (strlen(word_grapheme) - offset_word));
-        //printf("%s \n",sub);
-        if ( startsWith(pch, sub)){
+        //printf("-%s-%s-%s-%s-\n", vocab, str_pch,pch,sub);
+        if ( startsWith(str_pch, sub)){
 
-            printf("matched! %s - %s \n", pch,sub);
+            int nused;
+            const int32 prob = ngram_ng_prob(model, i, history, total_history, &nused);
 
-            int32 nused[0];
-            const int32 prob = ngram_ng_prob(model, i, history, total_history, nused);
+            printf("matched:%i-%s-%s-%s-%s-%i-\n", i, vocab, str_pch,pch,sub,prob);
+
             if (current_prob < prob) {
                 current_prob = prob;
                 winner_s.winner_wid = i;
                 winner_s.length_match = strlen(pch);
 
-                //printf("vocab( %s ) %i %i \n", new_vocab, prob, i);
+                //printf("winner %s - %s - %s \n", vocab, str,pch);
 
             }
 
@@ -101,7 +102,7 @@ struct winner_t get_winner_wid(ngram_model_t *model, char word_grapheme[], int32
             pch = strtok(NULL, "|");
         }
 
-        free(str);
+        free(str_pch);
         free(new_vocab);
 
     }
