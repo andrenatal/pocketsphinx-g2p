@@ -4,11 +4,11 @@
 //
 
 #include "main.h"
-#include <sphinxbase/ngram_model.h>
-#include <stdlib.h>
-#include <string.h>
+#include <sphinxbase/err.h>
+
 
 int main() {
+    err_set_logfp(NULL);
     logmath_t *logmath = logmath_init(1.0001f, 0, 0);
     ngram_model_t *model = ngram_model_read(NULL,"/Users/anatal/Downloads/g2p-model/cmudict-g2p.lm.dmp",NGRAM_AUTO,logmath);
     const int32 *total_unigrams = ngram_model_get_counts(model);
@@ -19,39 +19,44 @@ int main() {
     int32 wid_sentence = ngram_wid(model,"<s>");
     history[0] = wid_sentence;
     int totalh = 0;
-    char word_grapheme[] = "jose";
-    for (int j = 0 ; j <= (int) strlen(word_grapheme)-1 ; j++) {
+    char word_grapheme[] = "zillions";
+    size_t increment = 1;
+    int offset_word = 0;
+    for (int j = 0 ; j <= (int) strlen(word_grapheme)-1 ; j += increment) {
         //char letter = 'l' ;//word_grapheme[j];
-        char letter = word_grapheme[j];
+        //char letter = word_grapheme[j];
 
         //printf("letter %c %i \n" , letter, j);
 
-        winner_wid = get_winner_wid(model,letter,history,*total_unigrams,j+1);
+        struct winner_t winner_s = get_winner_wid(model,word_grapheme,history,*total_unigrams,totalh,offset_word);
 
-        printf(" letter %c winner id %i \n" , letter,  winner_wid);
-        history[j+1] = winner_wid;
+        //printf(" letter %c winner id %i \n" , letter,  winner_wid);
+        increment = winner_s.length_match;
+        history[j+1] = winner_s.winner_wid;
         totalh = j+1;
+        offset_word += winner_s.length_match;
     }
 
     for (int w = 0; w <= totalh; w++){
         const char* word;
         word = ngram_word(model, history[w]);
-        printf(" %s " , word);
+        printf("%s " , word);
     }
 
     free(logmath);
     ngram_model_free(model);
+
     return 0;
 }
 
 
-int32 get_winner_wid(ngram_model_t *model, char letter, int32 *history, const int32 total_unigrams, int total_history)
-{
+struct winner_t get_winner_wid(ngram_model_t *model, char word_grapheme[], int32 *history, const int32 total_unigrams, int total_history, int offset_word) {
     //printf("letter %s total unigrams %i \n" , letter, total_unigrams);
     //printf("letra aqui %c " , letter);
 
     int32 winner_wid = 0;
     int32 current_prob = -2147483647;
+    struct winner_t winner_s; //Treating it like a normal variable type
 
     for (int32 i = 0; i <= total_unigrams; i++) {
 
@@ -65,26 +70,66 @@ int32 get_winner_wid(ngram_model_t *model, char letter, int32 *history, const in
 
         char *pch = strtok(new_vocab, "}");
 
-        if ( letter  == *pch) {
+        char* str = malloc(strlen(pch)+1);
+        strcpy(str, pch);
+        removeChar(str, '|');
+        printf("%s - %s - %s \n", vocab, str,pch);
+
+        char sub[1000];
+        substring(word_grapheme, sub, offset_word+1, (strlen(word_grapheme) - offset_word));
+        //printf("%s \n",sub);
+        if ( startsWith(pch, sub)){
+
+            printf("matched! %s - %s \n", pch,sub);
 
             int32 nused[0];
             const int32 prob = ngram_ng_prob(model, i, history, total_history, nused);
             if (current_prob < prob) {
                 current_prob = prob;
-                winner_wid = i;
-            }
-/*
-            printf(" vocab( %s ) %i %i", new_vocab, prob, i);
+                winner_s.winner_wid = i;
+                winner_s.length_match = strlen(pch);
 
-            while (pch != NULL) {
-                printf(" %s ", pch);
-                pch = strtok(NULL, " ,.-");
+                //printf("vocab( %s ) %i %i \n", new_vocab, prob, i);
+
             }
-            printf("\n");
-            */
+
+
         }
-       free(new_vocab);
-    }
 
-    return winner_wid;
+        while (pch != NULL) {
+            //printf(" %s ", pch);
+            pch = strtok(NULL, "|");
+        }
+
+        free(str);
+        free(new_vocab);
+
+    }
+    printf ("winner %i %i \n" , winner_s.winner_wid, winner_s.length_match);
+    return winner_s;
+}
+
+
+bool startsWith(const char *pre, const char *str) {
+    size_t lenpre = strlen(pre), lenstr = strlen(str);
+    return lenstr < lenpre ? false : strncmp(pre, str, lenpre) == 0;
+}
+
+void removeChar(char *str, char garbage) {
+    char *src, *dst;
+    for (src = dst = str; *src != '\0'; src++) {
+        *dst = *src;
+        if (*dst != garbage) dst++;
+    }
+    *dst = '\0';
+}
+
+void substring(char s[], char sub[], int p, int l) {
+    int c = 0;
+
+    while (c < l) {
+        sub[c] = s[p+c-1];
+        c++;
+    }
+    sub[c] = '\0';
 }
